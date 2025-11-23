@@ -2,50 +2,20 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/wilsonSev/avitoTechService/internal/services"
 	"net/http"
-
-	"github.com/wilsonSev/avitoTechService/internal/model"
 )
 
-type Handlers struct {
-	prService   *services.PRService
-	teamService *services.TeamService
-	userService *services.UserService
+func writeJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(data)
 }
 
-func NewHandlers(
-	pr *services.PRService,
-	team *services.TeamService,
-	user *services.UserService,
-) *Handlers {
-	return &Handlers{
-		prService:   pr,
-		teamService: team,
-		userService: user,
-	}
-}
-
-func (Handlers) GetTeam() {
-
-}
-
-func (Handlers) SetUserActive() {
-
-}
-
-func (Handlers) GetReviewedPRs() {
-
-}
-
-func (Handlers) CreatePR() {
-
-}
-
-func (Handlers) MergePR() {
-
-}
-
-func (Handlers) Reassign() {
-
+func writeError(w http.ResponseWriter, status int, code, msg string) {
+	writeJSON(w, status, map[string]interface{}{
+		"error": map[string]string{
+			"code":    code,
+			"message": msg,
+		},
+	})
 }

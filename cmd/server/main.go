@@ -2,32 +2,26 @@ package main
 
 import (
 	"context"
-	"os/signal"
-	"syscall"
-
-	"github.com/wilsonSev/avitoTechService/internal/storage"
-
 	"log"
 	"net/http"
 	"os"
+	"time"
 
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 	"github.com/wilsonSev/avitoTechService/internal/api"
+	"github.com/wilsonSev/avitoTechService/internal/services"
+	"github.com/wilsonSev/avitoTechService/internal/storage"
 )
 
 func main() {
+	ctx := context.Background()
+
 	// настройка пула соединений с БД
 	_ = godotenv.Load()
-	user := os.Getenv("USER")
-	password := os.Getenv("PASSWORD")
-
-	dsn := "postgres://" + user + ":" + password + "@localhost:5432/app?sslmode=disable"
-
-	// graceful shutdown
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		log.Fatal("DATABASE_URL environment variable not set")
+	}
 
 	pool, err := storage.NewPool(ctx, dsn)
 	if err != nil {
@@ -35,12 +29,33 @@ func main() {
 	}
 	defer pool.Close()
 
-	// настройка сервера
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	h := api.NewHandlers()
+	// Репозитории
+	userRepo := storage.NewUserRepo(pool)
+	teamRepo := storage.NewTeamRepo(pool)
+	prRepo := storage.NewPRRepo(pool)
 
-	r.Post("/team/add", h.CreateTeam)
+	// Сервисы
+	userService := services.NewUserService(userRepo, prRepo)
+	teamService := services.NewTeamService(teamRepo, userRepo)
+	prService := services.NewPRService(prRepo, userRepo)
 
-	http.ListenAndServe(":3000", r)
+	// Хендлеры
+	teamHandler := api.NewTeamHandler(teamService)
+	userHandler := api.NewUserHandler(userService)
+	prHandler := api.NewPRHandler(prService)
+
+	router := api.NewRouter(teamHandler, userHandler, prHandler)
+
+	srv := &http.Server{
+		Addr:         ":8080",
+		Handler:      router.Handler(),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		IdleTimeout:  30 * time.Second,
+	}
+	log.Println("Server started at :8080")
+	if err := srv.ListenAndServe(); err != nil {
+		log.Fatal(err)
+	}
+
 }

@@ -1,9 +1,13 @@
 package model
 
+import "time"
+
 type PullRequest struct {
-	id        int64  `json:"pull_request_id"`
-	name      string `json:"pull_request_name"`
-	author    User   `json:"author_id"`
-	status    string `json:"status"`
-	reviewers []User `json:"assigned_reviewers"`
+	PullRequestID     string     `json:"pull_request_id"`
+	PullRequestName   string     `json:"pull_request_name"`
+	AuthorID          string     `json:"author_id"`
+	Status            string     `json:"status"`
+	AssignedReviewers []string   `json:"assigned_reviewers"`
+	CreatedAt         *time.Time `json:"created_at"`
+	MergedAt          *time.Time `json:"merged_at"`
 }
